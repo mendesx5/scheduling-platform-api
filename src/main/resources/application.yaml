@@ -2,7 +2,7 @@ spring:
   application:
     name: scheduling-platform
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/scheduling}
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/scheduling}
     username: ${DB_USERNAME:scheduling}
     password: ${DB_PASSWORD:scheduling}
   jpa:
@@ -16,12 +16,20 @@ spring:
 
 server:
   error:
-    include-message: always
+    include-message: ${SERVER_ERROR_INCLUDE_MESSAGE:never}
+    include-stacktrace: never
 
 app:
   jwt:
-    secret: ${JWT_SECRET:change-this-development-secret-with-at-least-32-bytes}
+    secret: ${JWT_SECRET}
     expiration: ${JWT_EXPIRATION:86400000}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  rate-limit:
+    auth-per-minute: ${RATE_LIMIT_AUTH:10}
+    bookings-per-minute: ${RATE_LIMIT_BOOKINGS:20}
+    window-seconds: 60
+    trust-forwarded-for: ${TRUST_FORWARDED_FOR:false}
 
 springdoc:
   swagger-ui:

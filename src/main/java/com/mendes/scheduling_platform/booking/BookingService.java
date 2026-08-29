@@ -1,3 +1,97 @@
 package com.mendes.scheduling_platform.booking;
-import com.mendes.scheduling_platform.availability.*; import com.mendes.scheduling_platform.blockedperiod.*; import com.mendes.scheduling_platform.customer.*; import com.mendes.scheduling_platform.exception.*; import com.mendes.scheduling_platform.venue.*; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.*; import java.math.*; import java.time.*; import java.util.*;
-@Service public class BookingService { private final BookingRepository bookings;private final VenueRepository venues;private final CustomerRepository customers;private final AvailabilityRepository availability;private final BlockedPeriodRepository blocked; public BookingService(BookingRepository b,VenueRepository v,CustomerRepository c,AvailabilityRepository a,BlockedPeriodRepository p){bookings=b;venues=v;customers=c;availability=a;blocked=p;} public record Request(Long venueId,String customerName,String customerPhone,String customerEmail,OffsetDateTime startDateTime){} @Transactional(isolation=Isolation.SERIALIZABLE) public Booking create(Long tenant,Request r){Venue v=venues.findByIdAndTenantId(r.venueId(),tenant).filter(Venue::isActive).orElseThrow(()->new NotFoundException("Espaço não encontrado"));OffsetDateTime start=r.startDateTime();OffsetDateTime end=start.plusMinutes(v.getDurationMinutes());if(!start.isAfter(OffsetDateTime.now()))throw new BusinessException("A reserva deve estar no futuro");boolean inside=availability.findAllByTenantIdAndVenueId(tenant,v.getId()).stream().anyMatch(a->a.getDayOfWeek()==start.getDayOfWeek()&&!start.toLocalTime().isBefore(a.getStartTime())&&!end.toLocalTime().isAfter(a.getEndTime())&&start.toLocalDate().equals(end.toLocalDate()));if(!inside)throw new BusinessException("Horário fora da disponibilidade");if(blocked.overlaps(tenant,v.getId(),start,end))throw new BusinessException("Período bloqueado");if(bookings.existsConflict(tenant,v.getId(),start,end))throw new BusinessException("Horário já reservado");Customer c=customers.findByTenantIdAndPhone(tenant,r.customerPhone()).orElseGet(Customer::new);c.setTenantId(tenant);c.setName(r.customerName());c.setPhone(r.customerPhone());c.setEmail(r.customerEmail());c=customers.save(c);Booking b=new Booking();b.setTenantId(tenant);b.setVenueId(v.getId());b.setCustomerId(c.getId());b.setStartDateTime(start);b.setEndDateTime(end);b.setTotalAmount(v.getPrice());return bookings.save(b);} public List<Booking> list(Long t){return bookings.findAllByTenantId(t);} public Booking status(Long t,Long id,Booking.Status status,Booking.PaymentStatus payment){Booking b=bookings.findByIdAndTenantId(id,t).orElseThrow(()->new NotFoundException("Reserva não encontrada"));if(status!=null)b.setStatus(status);if(payment!=null)b.setPaymentStatus(payment);return bookings.save(b);} }
+
+import com.mendes.scheduling_platform.availability.AvailabilityRepository;
+import com.mendes.scheduling_platform.blockedperiod.BlockedPeriodRepository;
+import com.mendes.scheduling_platform.customer.Customer;
+import com.mendes.scheduling_platform.customer.CustomerRepository;
+import com.mendes.scheduling_platform.exception.BusinessException;
+import com.mendes.scheduling_platform.exception.NotFoundException;
+import com.mendes.scheduling_platform.venue.Venue;
+import com.mendes.scheduling_platform.venue.VenueRepository;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+
+@Service
+public class BookingService {
+    private final BookingRepository bookings;
+    private final VenueRepository venues;
+    private final CustomerRepository customers;
+    private final AvailabilityRepository availability;
+    private final BlockedPeriodRepository blocked;
+
+    public BookingService(BookingRepository bookings, VenueRepository venues, CustomerRepository customers,
+                          AvailabilityRepository availability, BlockedPeriodRepository blocked) {
+        this.bookings = bookings;
+        this.venues = venues;
+        this.customers = customers;
+        this.availability = availability;
+        this.blocked = blocked;
+    }
+
+    public record Request(Long venueId, String customerName, String customerPhone,
+                          String customerEmail, OffsetDateTime startDateTime) {}
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Booking create(Long tenantId, Request request) {
+        Venue venue = venues.findByIdAndTenantId(request.venueId(), tenantId)
+                .filter(Venue::isActive)
+                .orElseThrow(() -> new NotFoundException("Espaço não encontrado"));
+        OffsetDateTime start = request.startDateTime();
+        OffsetDateTime end = start.plusMinutes(venue.getDurationMinutes());
+
+        if (!start.isAfter(OffsetDateTime.now())) {
+            throw new BusinessException("A reserva deve estar no futuro");
+        }
+        boolean insideAvailability = availability.findAllByTenantIdAndVenueId(tenantId, venue.getId()).stream()
+                .anyMatch(item -> item.getDayOfWeek() == start.getDayOfWeek()
+                        && !start.toLocalTime().isBefore(item.getStartTime())
+                        && !end.toLocalTime().isAfter(item.getEndTime())
+                        && start.toLocalDate().equals(end.toLocalDate()));
+        if (!insideAvailability) throw new BusinessException("Horário fora da disponibilidade");
+        if (blocked.overlaps(tenantId, venue.getId(), start, end)) {
+            throw new BusinessException("Período bloqueado");
+        }
+        // Fast feedback; the PostgreSQL exclusion constraint remains the concurrency authority.
+        if (bookings.existsConflict(tenantId, venue.getId(), start, end)) {
+            throw new BusinessException("Horário já reservado");
+        }
+
+        Customer customer = customers.findByTenantIdAndPhone(tenantId, request.customerPhone())
+                .orElseGet(Customer::new);
+        customer.setTenantId(tenantId);
+        customer.setName(request.customerName());
+        customer.setPhone(request.customerPhone());
+        customer.setEmail(request.customerEmail());
+        customer = customers.save(customer);
+
+        Booking booking = new Booking();
+        booking.setTenantId(tenantId);
+        booking.setVenueId(venue.getId());
+        booking.setCustomerId(customer.getId());
+        booking.setStartDateTime(start);
+        booking.setEndDateTime(end);
+        booking.setTotalAmount(venue.getPrice());
+        try {
+            return bookings.saveAndFlush(booking);
+        } catch (DataIntegrityViolationException exception) {
+            throw new BusinessException("Horário já reservado por outra solicitação");
+        }
+    }
+
+    public List<Booking> list(Long tenantId) {
+        return bookings.findAllByTenantId(tenantId);
+    }
+
+    public Booking status(Long tenantId, Long id, Booking.Status status, Booking.PaymentStatus paymentStatus) {
+        Booking booking = bookings.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Reserva não encontrada"));
+        if (status != null) booking.setStatus(status);
+        if (paymentStatus != null) booking.setPaymentStatus(paymentStatus);
+        return bookings.save(booking);
+    }
+}

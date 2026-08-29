@@ -1,0 +1,4 @@
+app:
+  jwt:
+    secret: test-only-secret-with-more-than-thirty-two-bytes
+    expiration: 60000

@@ -1,0 +1,21 @@
+spring:
+  jpa:
+    open-in-view: false
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+  forward-headers-strategy: native
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
