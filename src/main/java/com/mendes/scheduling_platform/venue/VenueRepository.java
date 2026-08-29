@@ -1,0 +1,2 @@
+package com.mendes.scheduling_platform.venue; import org.springframework.data.jpa.repository.JpaRepository; import java.util.*;
+public interface VenueRepository extends JpaRepository<Venue,Long> { List<Venue> findAllByTenantId(Long tenantId); List<Venue> findAllByTenantIdAndActiveTrue(Long tenantId); Optional<Venue> findByIdAndTenantId(Long id,Long tenantId); }

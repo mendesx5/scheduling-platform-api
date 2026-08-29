@@ -1,0 +1,2 @@
+package com.mendes.scheduling_platform.venue; import jakarta.persistence.*; import lombok.*; import java.math.BigDecimal;
+@Entity @Table(name="venues") @Getter @Setter @NoArgsConstructor public class Venue { @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id; @Column(nullable=false) private Long tenantId; @Column(nullable=false) private String name; private String description; @Column(nullable=false) private String type; @Column(nullable=false) private BigDecimal price; private Integer durationMinutes; private boolean active=true; }

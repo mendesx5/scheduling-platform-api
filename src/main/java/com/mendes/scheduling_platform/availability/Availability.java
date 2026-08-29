@@ -1,0 +1,2 @@
+package com.mendes.scheduling_platform.availability; import jakarta.persistence.*; import lombok.*; import java.time.*;
+@Entity @Table(name="availabilities") @Getter @Setter @NoArgsConstructor public class Availability { @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id; private Long tenantId; private Long venueId; @Enumerated(EnumType.STRING) private DayOfWeek dayOfWeek; private LocalTime startTime; private LocalTime endTime; }

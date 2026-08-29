@@ -1,0 +1,2 @@
+package com.mendes.scheduling_platform.customer; import jakarta.persistence.*; import lombok.*;
+@Entity @Table(name="customers",uniqueConstraints=@UniqueConstraint(columnNames={"tenant_id","phone"})) @Getter @Setter @NoArgsConstructor public class Customer { @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id; private Long tenantId; private String name; private String phone; private String email; }

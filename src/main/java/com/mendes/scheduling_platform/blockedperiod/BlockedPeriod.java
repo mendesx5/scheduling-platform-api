@@ -1,0 +1,2 @@
+package com.mendes.scheduling_platform.blockedperiod; import jakarta.persistence.*; import lombok.*; import java.time.*;
+@Entity @Table(name="blocked_periods") @Getter @Setter @NoArgsConstructor public class BlockedPeriod { @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id; private Long tenantId; private Long venueId; private OffsetDateTime startDateTime; private OffsetDateTime endDateTime; private String reason; }

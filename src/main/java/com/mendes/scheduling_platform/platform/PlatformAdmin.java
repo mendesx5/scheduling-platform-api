@@ -1,0 +1,2 @@
+package com.mendes.scheduling_platform.platform; import com.fasterxml.jackson.annotation.JsonIgnore; import jakarta.persistence.*; import lombok.*;
+@Entity @Table(name="platform_admins") @Getter @Setter @NoArgsConstructor public class PlatformAdmin { @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id; private String name; @Column(unique=true) private String email; @JsonIgnore private String password; }

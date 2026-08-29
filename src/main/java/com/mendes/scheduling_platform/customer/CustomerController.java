@@ -1,0 +1,2 @@
+package com.mendes.scheduling_platform.customer; import com.mendes.scheduling_platform.security.TenantContext; import org.springframework.web.bind.annotation.*; import java.util.*;
+@RestController @RequestMapping("/customers") public class CustomerController {private final CustomerRepository repo;public CustomerController(CustomerRepository r){repo=r;}@GetMapping List<Customer> list(){return repo.findAllByTenantId(TenantContext.getRequired());}@PostMapping Customer add(@RequestBody Customer c){c.setId(null);c.setTenantId(TenantContext.getRequired());return repo.save(c);}}
