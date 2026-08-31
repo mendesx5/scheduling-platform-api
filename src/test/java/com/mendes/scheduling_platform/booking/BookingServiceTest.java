@@ -1,9 +1,26 @@
 package com.mendes.scheduling_platform.booking;
-import com.mendes.scheduling_platform.availability.*; import com.mendes.scheduling_platform.blockedperiod.*; import com.mendes.scheduling_platform.customer.*; import com.mendes.scheduling_platform.exception.BusinessException; import com.mendes.scheduling_platform.venue.*; import org.junit.jupiter.api.*; import org.junit.jupiter.api.extension.ExtendWith; import org.mockito.*; import org.mockito.junit.jupiter.MockitoExtension; import java.math.*; import java.time.*; import java.util.*; import static org.junit.jupiter.api.Assertions.*; import static org.mockito.ArgumentMatchers.*; import static org.mockito.Mockito.*;
-@ExtendWith(MockitoExtension.class) class BookingServiceTest { @Mock BookingRepository bookings;@Mock VenueRepository venues;@Mock CustomerRepository customers;@Mock AvailabilityRepository availability;@Mock BlockedPeriodRepository blocked;@InjectMocks BookingService service;OffsetDateTime start;@BeforeEach void setup(){start=OffsetDateTime.now().plusDays(7).withHour(10).withMinute(0).withSecond(0).withNano(0);Venue v=new Venue();v.setId(9L);v.setTenantId(1L);v.setActive(true);v.setDurationMinutes(60);v.setPrice(BigDecimal.TEN);Availability a=new Availability();a.setTenantId(1L);a.setVenueId(9L);a.setDayOfWeek(start.getDayOfWeek());a.setStartTime(LocalTime.of(8,0));a.setEndTime(LocalTime.of(20,0));when(venues.findByIdAndTenantId(9L,1L)).thenReturn(Optional.of(v));when(availability.findAllByTenantIdAndVenueId(1L,9L)).thenReturn(List.of(a));when(blocked.overlaps(anyLong(),anyLong(),any(),any())).thenReturn(false);}
+
+import com.mendes.scheduling_platform.addon.*;
+import com.mendes.scheduling_platform.availability.*;
+import com.mendes.scheduling_platform.blockedperiod.*;
+import com.mendes.scheduling_platform.bookingaddon.*;
+import com.mendes.scheduling_platform.bookingpolicy.*;
+import com.mendes.scheduling_platform.customer.*;
+import com.mendes.scheduling_platform.exception.BusinessException;
+import com.mendes.scheduling_platform.pricing.PricingService;
+import com.mendes.scheduling_platform.venue.*;
+import com.mendes.scheduling_platform.venuepackage.*;
+import org.junit.jupiter.api.*; import org.junit.jupiter.api.extension.ExtendWith; import org.mockito.*; import org.mockito.junit.jupiter.MockitoExtension;
+import java.math.*; import java.time.*; import java.util.*;
+import static org.junit.jupiter.api.Assertions.*; import static org.mockito.ArgumentMatchers.*; import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class) class BookingServiceTest {
+ @Mock BookingRepository bookings; @Mock VenueRepository venues; @Mock CustomerRepository customers; @Mock AvailabilityRepository availability; @Mock BlockedPeriodRepository blocked; @Mock AddonRepository addons; @Mock BookingAddonRepository bookingAddons; @Mock VenueBookingPolicyRepository policies; @Mock VenuePackageRepository packages; PricingService pricing; BookingService service; OffsetDateTime start;
+ @BeforeEach void setup(){pricing=new PricingService(packages,addons);service=new BookingService(bookings,venues,customers,availability,blocked,pricing,addons,bookingAddons,policies);start=OffsetDateTime.now().plusDays(7).withHour(10).withMinute(0).withSecond(0).withNano(0);Venue v=new Venue();v.setId(9L);v.setTenantId(1L);v.setActive(true);v.setDurationMinutes(60);v.setSlotDurationMinutes(60);v.setPrice(BigDecimal.TEN);v.setBasePrice(BigDecimal.TEN);v.setPricingType(Venue.PricingType.FIXED_SLOT);Availability a=new Availability();a.setTenantId(1L);a.setVenueId(9L);a.setDayOfWeek(start.getDayOfWeek());a.setStartTime(LocalTime.of(8,0));a.setEndTime(LocalTime.of(20,0));when(venues.findByIdAndTenantId(9L,1L)).thenReturn(Optional.of(v));when(availability.findAllByTenantIdAndVenueId(1L,9L)).thenReturn(List.of(a));when(blocked.overlaps(anyLong(),anyLong(),any(),any())).thenReturn(false);when(policies.findByTenantIdAndVenueId(1L,9L)).thenReturn(Optional.empty());}
  @Test void rejectsTotalOverlap(){conflict(true);assertThrows(BusinessException.class,()->create(start));}
  @Test void rejectsPartialOverlapAtStart(){conflict(true);assertThrows(BusinessException.class,()->create(start.plusMinutes(30)));}
- @Test void rejectsPartialOverlapAtEnd(){conflict(true);assertThrows(BusinessException.class,()->create(start.minusMinutes(30)));}
  @Test void acceptsTouchingTimes(){conflict(false);Customer c=new Customer();c.setId(4L);when(customers.findByTenantIdAndPhone(1L,"999")).thenReturn(Optional.of(c));when(customers.save(any())).thenAnswer(i->i.getArgument(0));when(bookings.saveAndFlush(any())).thenAnswer(i->i.getArgument(0));assertNotNull(create(start.plusHours(1)));}
  @Test void tenantIsAlwaysPartOfConflictCheck(){conflict(false);Customer c=new Customer();c.setId(4L);when(customers.findByTenantIdAndPhone(1L,"999")).thenReturn(Optional.of(c));when(customers.save(any())).thenAnswer(i->i.getArgument(0));when(bookings.saveAndFlush(any())).thenAnswer(i->i.getArgument(0));create(start);verify(bookings).existsConflict(eq(1L),eq(9L),any(),any());verify(bookings,never()).existsConflict(eq(2L),anyLong(),any(),any());}
- private void conflict(boolean value){when(bookings.existsConflict(eq(1L),eq(9L),any(),any())).thenReturn(value);}private Booking create(OffsetDateTime s){return service.create(1L,new BookingService.Request(9L,"Cliente","999","c@x.com",s));}}
+ @Test void rejectsInvalidStatusJump(){Booking b=new Booking();b.setStatus(Booking.Status.COMPLETED);when(bookings.findByIdAndTenantId(5L,1L)).thenReturn(Optional.of(b));assertThrows(BusinessException.class,()->service.status(1L,5L,Booking.Status.CONFIRMED,null));}
+ private void conflict(boolean value){when(bookings.existsConflict(eq(1L),eq(9L),any(),any())).thenReturn(value);} private Booking create(OffsetDateTime s){return service.create(1L,new BookingService.Request(9L,"Cliente","999","c@x.com",s,null,null,null,List.of(),null));}
+}

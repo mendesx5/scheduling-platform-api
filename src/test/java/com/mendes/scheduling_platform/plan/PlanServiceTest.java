@@ -1,0 +1,7 @@
+package com.mendes.scheduling_platform.plan;
+import com.mendes.scheduling_platform.exception.BusinessException; import com.mendes.scheduling_platform.subscription.*; import com.mendes.scheduling_platform.user.UserRepository; import com.mendes.scheduling_platform.venue.VenueRepository; import org.junit.jupiter.api.*; import org.junit.jupiter.api.extension.ExtendWith; import org.mockito.*; import org.mockito.junit.jupiter.MockitoExtension; import java.util.*; import static org.junit.jupiter.api.Assertions.*; import static org.mockito.Mockito.*;
+@ExtendWith(MockitoExtension.class) class PlanServiceTest { @Mock SubscriptionRepository subscriptions; @Mock VenueRepository venues; @Mock UserRepository users; @InjectMocks PlanService service;
+ @Test void starterRejectsSecondVenue(){Subscription s=new Subscription();s.setPlan("STARTER");when(subscriptions.findByTenantId(1L)).thenReturn(Optional.of(s));when(venues.countByTenantId(1L)).thenReturn(1L);assertThrows(BusinessException.class,()->service.assertCanCreateVenue(1L));}
+ @Test void proAllowsThreeVenues(){Subscription s=new Subscription();s.setPlan("PRO");when(subscriptions.findByTenantId(1L)).thenReturn(Optional.of(s));when(venues.countByTenantId(1L)).thenReturn(2L);assertDoesNotThrow(()->service.assertCanCreateVenue(1L));}
+ @Test void starterDoesNotHaveAddons(){Subscription s=new Subscription();s.setPlan("STARTER");when(subscriptions.findByTenantId(1L)).thenReturn(Optional.of(s));assertThrows(BusinessException.class,()->service.assertFeatureEnabled(1L,PlanService.Feature.ADDONS));}
+}

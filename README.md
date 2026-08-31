@@ -1,16 +1,36 @@
 # Scheduling Platform API
 
-Backend Spring Boot 4/Java 21 para SaaS multi-tenant de reservas.
+Backend multi-tenant para um SaaS de reservas e gestão de espaços.
 
-## Executar
+## Stack
+Java 21, Spring Boot, Spring Security/JWT, PostgreSQL, Flyway, Docker, JUnit/Mockito e Testcontainers.
 
+## Pricing
+Espaços suportam `FIXED_SLOT`, `HOURLY`, `DAILY` e `PACKAGE`. O backend calcula preços; o frontend nunca é autoridade sobre o total. Também existem pacotes, adicionais (`FIXED`, `PER_HOUR`, `PER_UNIT`) e políticas por espaço.
+
+## Planos internos
+- `STARTER` (Básico): 1 espaço, 1 usuário
+- `PRO`: até 3 espaços, 3 usuários, adicionais e pacotes
+- `BUSINESS` (Plus): até 5 espaços, 10 usuários, adicionais e pacotes
+
+Limites são aplicados no backend por `PlanService`.
+
+## Principais endpoints novos
+- `GET /plan` (plano e limites atuais)
+- `GET/POST /venues/{venueId}/packages`
+- `DELETE /venues/{venueId}/packages/{id}`
+- `GET/POST /venues/{venueId}/addons`
+- `DELETE /venues/{venueId}/addons/{id}`
+- `GET/PUT /venues/{venueId}/policy`
+- `GET /public/{slug}/venues/{venueId}/packages`
+- `GET /public/{slug}/venues/{venueId}/addons`
+- `POST /public/{slug}/quote`
+- `POST /public/{slug}/bookings` com duração/pacote/adicionais
+
+## Desenvolvimento
 ```bash
+./mvnw verify
 docker compose up -d
-./mvnw spring-boot:run
 ```
 
-Variáveis: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `JWT_EXPIRATION`, `PLATFORM_ADMIN_EMAIL` e `PLATFORM_ADMIN_PASSWORD`. O primeiro admin da plataforma é criado somente quando as duas últimas são informadas.
-
-Swagger: `http://localhost:8080/swagger-ui.html`. Cadastre um tenant em `POST /tenants/register`, autentique em `POST /auth/login` e envie o JWT como Bearer. A página pública usa `/public/{slug}`.
-
-O PostgreSQL local é publicado na porta `5433` para evitar conflito com instalações locais. Em produção use o perfil `prod`, defina obrigatoriamente `JWT_SECRET` e configure `CORS_ALLOWED_ORIGINS` com o domínio real. `TRUST_FORWARDED_FOR` só deve ser ativado atrás de um proxy confiável que sobrescreva esse cabeçalho.
+Nunca altere migrations já aplicadas; novas mudanças devem entrar como novas versões Flyway.
