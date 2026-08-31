@@ -5,4 +5,5 @@ public interface VenuePackageRepository extends JpaRepository<VenuePackage,Long>
     List<VenuePackage> findAllByTenantIdAndVenueId(Long tenantId,Long venueId);
     List<VenuePackage> findAllByTenantIdAndVenueIdAndActiveTrue(Long tenantId,Long venueId);
     Optional<VenuePackage> findByIdAndTenantIdAndVenueId(Long id,Long tenantId,Long venueId);
+    long countByTenantIdAndVenueId(Long tenantId,Long venueId);
 }

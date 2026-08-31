@@ -15,6 +15,11 @@ public class VenuePackageController {
     private Long tenant(){return TenantContext.getRequired();}
     private void venue(Long id){venues.findByIdAndTenantId(id,tenant()).orElseThrow(()->new NotFoundException("Espaço não encontrado"));}
     @GetMapping public List<VenuePackage> list(@PathVariable Long venueId){venue(venueId);return repo.findAllByTenantIdAndVenueId(tenant(),venueId);}
-    @PostMapping @PreAuthorize("hasAnyRole('OWNER','MANAGER')") public VenuePackage create(@PathVariable Long venueId,@RequestBody VenuePackage in){venue(venueId);plans.assertFeatureEnabled(tenant(), PlanService.Feature.PACKAGES);if(in.getName()==null||in.getName().isBlank()||in.getDurationMinutes()==null||in.getDurationMinutes()<1||in.getPrice()==null||in.getPrice().signum()<0)throw new BusinessException("Pacote inválido");in.setId(null);in.setTenantId(tenant());in.setVenueId(venueId);return repo.save(in);}
+    @PostMapping @PreAuthorize("hasAnyRole('OWNER','MANAGER')") public VenuePackage create(@PathVariable Long venueId,@RequestBody VenuePackage in){
+        venue(venueId);
+        plans.assertCanCreatePackage(tenant(),venueId);
+        if(in.getName()==null||in.getName().isBlank()||in.getDurationMinutes()==null||in.getDurationMinutes()<1||in.getPrice()==null||in.getPrice().signum()<0)throw new BusinessException("Pacote inválido");
+        in.setId(null);in.setTenantId(tenant());in.setVenueId(venueId);return repo.save(in);
+    }
     @DeleteMapping("/{id}") @PreAuthorize("hasAnyRole('OWNER','MANAGER')") public void delete(@PathVariable Long venueId,@PathVariable Long id){VenuePackage p=repo.findByIdAndTenantIdAndVenueId(id,tenant(),venueId).orElseThrow(()->new NotFoundException("Pacote não encontrado"));repo.delete(p);}
 }

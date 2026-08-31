@@ -1,21 +1,20 @@
 package com.mendes.scheduling_platform.publicpage;
 
 import com.mendes.scheduling_platform.security.TenantContext;
-import org.springframework.beans.factory.annotation.Value;
+import com.mendes.scheduling_platform.storage.StorageService;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.*;
-import java.nio.file.*;
 import java.util.*;
 
 @RestController
 @RequestMapping("/page-settings")
 public class PageSettingsController {
     private final PageSettingsService service;
-    private final Path uploadDir;
-    public PageSettingsController(PageSettingsService service,@Value("${app.upload-dir:uploads}") String uploadDir){
-        this.service=service;this.uploadDir=Paths.get(uploadDir).toAbsolutePath().normalize();
+    private final StorageService storage;
+    public PageSettingsController(PageSettingsService service,StorageService storage){
+        this.service=service;this.storage=storage;
     }
     @GetMapping public TenantPageSettings get(){return service.get(TenantContext.getRequired());}
     @PutMapping public TenantPageSettings save(@RequestBody TenantPageSettings input){return service.save(TenantContext.getRequired(),input);}
@@ -29,11 +28,9 @@ public class PageSettingsController {
         String type=file.getContentType()==null?"":file.getContentType();
         if(!type.startsWith("image/"))throw new IllegalArgumentException("Envie apenas imagens");
         if(file.getSize()>8*1024*1024)throw new IllegalArgumentException("Imagem excede 8 MB");
-        Path dir=uploadDir.resolve("public-pages").resolve(String.valueOf(TenantContext.getRequired()));
-        Files.createDirectories(dir);
         String original=Optional.ofNullable(file.getOriginalFilename()).orElse("image").replaceAll("[^a-zA-Z0-9._-]","_");
-        String name=UUID.randomUUID()+"-"+original;
-        Files.copy(file.getInputStream(),dir.resolve(name),StandardCopyOption.REPLACE_EXISTING);
-        return Map.of("url","/uploads/public-pages/"+TenantContext.getRequired()+"/"+name);
+        String key="public-pages/"+TenantContext.getRequired()+"/"+UUID.randomUUID()+"-"+original;
+        String url=storage.upload(key,file.getInputStream(),file.getSize(),type);
+        return Map.of("url",url);
     }
 }
