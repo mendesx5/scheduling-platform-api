@@ -15,7 +15,6 @@ spring:
     enabled: true
 
 server:
-  port: ${PORT:8080}
   error:
     include-message: ${SERVER_ERROR_INCLUDE_MESSAGE:never}
     include-stacktrace: never
