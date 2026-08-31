@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS asaas_webhook_events (
+  id VARCHAR(100) PRIMARY KEY,
+  event VARCHAR(80) NOT NULL,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
