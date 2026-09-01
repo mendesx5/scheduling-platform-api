@@ -70,7 +70,9 @@ public class AsaasBillingService {
         ));
         String id=text(response,"id");
         if(id==null) throw new BusinessException("Asaas não retornou o ID do checkout");
-        return new Checkout(id, "https://asaas.com/checkoutSession/show?id=" + id);
+        String link=text(response,"link");
+        if(link==null) throw new BusinessException("Asaas não retornou o link do checkout");
+        return new Checkout(id, link);
     }
 
     @Transactional
