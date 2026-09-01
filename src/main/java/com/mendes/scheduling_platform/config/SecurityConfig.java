@@ -19,10 +19,26 @@ import java.util.*;
 public class SecurityConfig {
     @Bean PasswordEncoder passwordEncoder(){return new BCryptPasswordEncoder();}
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http,JwtAuthenticationFilter jwtFilter,RateLimitFilter rateLimitFilter)throws Exception{
-        return http.csrf(csrf->csrf.disable()).cors(cors->{}).sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth->auth.requestMatchers("/auth/**","/tenants/register","/platform/auth/**","/public/**","/uploads/**","/billing/webhooks/asaas","/billing/checkouts/**",
-                "/v3/api-docs/**","/swagger-ui/**","/swagger-ui.html","/actuator/health").permitAll()
-                .requestMatchers("/platform/admin/**").hasRole("PLATFORM_ADMIN").anyRequest().authenticated())
+        return http.csrf(csrf->csrf.disable())
+                .cors(cors->{})
+                .sessionManagement(session->session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth->auth
+                    .requestMatchers("/auth/**",
+                            "/tenants/register",
+                            "/platform/auth/**",
+                            "/public/**",
+                            "/uploads/**",
+                            "/billing/webhooks/asaas",
+                            "/billing/checkouts/**",
+                            "/v3/api-docs/**",
+                            "/swagger-ui/**",
+                            "/swagger-ui.html",
+                            "/actuator/health",
+                            "/tenants/register")
+                    .permitAll()
+                .requestMatchers("/platform/admin/**").hasRole("PLATFORM_ADMIN")
+                    .anyRequest().authenticated())
             .addFilterBefore(rateLimitFilter,UsernamePasswordAuthenticationFilter.class).addFilterBefore(jwtFilter,UsernamePasswordAuthenticationFilter.class).build();
     }
     @Bean CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}") String origins){
