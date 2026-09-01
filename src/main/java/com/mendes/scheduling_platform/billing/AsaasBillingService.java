@@ -58,11 +58,6 @@ public class AsaasBillingService {
                 "quantity", 1,
                 "value", price
             )},
-            "customerData", Map.of(
-                "name", ownerName,
-                "email", email,
-                "phone", phone == null ? "" : phone
-            ),
             "subscription", Map.of(
                 "cycle", "MONTHLY",
                 "nextDueDate", LocalDate.now().toString()

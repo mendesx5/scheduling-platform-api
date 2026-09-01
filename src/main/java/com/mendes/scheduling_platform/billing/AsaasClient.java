@@ -1,6 +1,7 @@
 package com.mendes.scheduling_platform.billing;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.mendes.scheduling_platform.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,7 +29,13 @@ public class AsaasClient {
     public String frontendUrl(){return frontendUrl;}
 
     public JsonNode createRecurringCheckout(Map<String,Object> body){
-        return client.post().uri("/checkouts").contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(JsonNode.class);
+        return client.post().uri("/checkouts").contentType(MediaType.APPLICATION_JSON).body(body)
+            .retrieve()
+            .onStatus(status -> status.isError(), (req, res) -> {
+                String detail = new String(res.getBody().readAllBytes());
+                throw new BusinessException("Falha ao criar checkout no Asaas: " + detail);
+            })
+            .body(JsonNode.class);
     }
 
     public void cancelSubscription(String id){
