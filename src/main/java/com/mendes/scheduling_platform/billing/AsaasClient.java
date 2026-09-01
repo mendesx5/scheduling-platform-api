@@ -1,6 +1,7 @@
 package com.mendes.scheduling_platform.billing;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mendes.scheduling_platform.exception.BusinessException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -14,6 +15,7 @@ import java.util.Map;
 public class AsaasClient {
     private final RestClient client;
     private final String frontendUrl;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public AsaasClient(RestClient.Builder builder,
                        @Value("${app.asaas.base-url:https://api-sandbox.asaas.com/v3}") String baseUrl,
@@ -29,13 +31,18 @@ public class AsaasClient {
     public String frontendUrl(){return frontendUrl;}
 
     public JsonNode createRecurringCheckout(Map<String,Object> body){
-        return client.post().uri("/checkouts").contentType(MediaType.APPLICATION_JSON).body(body)
+        String raw = client.post().uri("/checkouts").contentType(MediaType.APPLICATION_JSON).body(body)
             .retrieve()
             .onStatus(status -> status.isError(), (req, res) -> {
                 String detail = new String(res.getBody().readAllBytes());
                 throw new BusinessException("Falha ao criar checkout no Asaas: " + detail);
             })
-            .body(JsonNode.class);
+            .body(String.class);
+        try {
+            return mapper.readTree(raw);
+        } catch (Exception e) {
+            throw new BusinessException("Resposta inválida do Asaas ao criar checkout");
+        }
     }
 
     public void cancelSubscription(String id){
