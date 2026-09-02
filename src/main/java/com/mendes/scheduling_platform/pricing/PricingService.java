@@ -6,6 +6,7 @@ import com.mendes.scheduling_platform.plan.PlanService;
 import com.mendes.scheduling_platform.venue.*;
 import com.mendes.scheduling_platform.venuepackage.*;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.math.*;
 import java.time.*;
 import java.util.*;
@@ -16,6 +17,7 @@ public class PricingService {
     public record Quote(BigDecimal baseAmount,BigDecimal addonsAmount,BigDecimal totalAmount,OffsetDateTime startDateTime,OffsetDateTime endDateTime){}
     private final VenuePackageRepository packages; private final AddonRepository addons; private final PlanService plans;
     public PricingService(VenuePackageRepository p,AddonRepository a){this(p,a,null);}
+    @Autowired
     public PricingService(VenuePackageRepository p,AddonRepository a,PlanService plans){packages=p;addons=a;this.plans=plans;}
 
     public Quote quote(Long tenantId, Venue venue, OffsetDateTime start, Integer durationMinutes, Integer days, Long packageId, List<AddonRequest> selected){
