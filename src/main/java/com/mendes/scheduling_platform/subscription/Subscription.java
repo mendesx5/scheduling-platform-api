@@ -19,6 +19,9 @@ public class Subscription {
     private LocalDate nextBillingDate;
     private LocalDate lastBillingDate;
     @Column(nullable=false) private String billingCycle = "MONTHLY";
+    private String pendingPlan;
+    private String pendingBillingCycle;
+    private String previousAsaasSubscriptionId;
 
     @Column(length=80) private String asaasCustomerId;
     @Column(length=80) private String asaasSubscriptionId;

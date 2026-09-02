@@ -5,16 +5,18 @@ import com.mendes.scheduling_platform.plan.PlanService;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.*;
+import com.mendes.scheduling_platform.booking.BookingRepository;
 
 @Service
 public class VenueService {
-    private final VenueRepository repo; private final PlanService plans;
-    public VenueService(VenueRepository r,PlanService p){repo=r;plans=p;}
+    private final VenueRepository repo; private final PlanService plans; private final BookingRepository bookings;
+    public VenueService(VenueRepository r,PlanService p,BookingRepository bookings){repo=r;plans=p;this.bookings=bookings;}
     public List<Venue> list(Long t){return repo.findAllByTenantId(t);}
     public Venue get(Long t,Long id){return repo.findByIdAndTenantId(id,t).orElseThrow(()->new NotFoundException("Espaço não encontrado"));}
     public Venue save(Long t,Venue v){plans.assertCanCreateVenue(t);validate(v);assertPricingFeature(t,v);normalize(v);v.setId(null);v.setTenantId(t);return repo.save(v);}
     public Venue update(Long t,Long id,Venue in){validate(in);assertPricingFeature(t,in);Venue v=get(t,id);copy(v,in);normalize(v);return repo.save(v);}
-    public void delete(Long t,Long id){repo.delete(get(t,id));}
+    public Venue setActive(Long t,Long id,boolean active){Venue v=get(t,id);v.setActive(active);return repo.save(v);}
+    public void delete(Long t,Long id){Venue v=get(t,id);if(bookings.countByTenantIdAndVenueId(t,id)>0)throw new BusinessException("Espaço possui histórico de reservas; desative-o em vez de excluí-lo");repo.delete(v);}
     private void assertPricingFeature(Long t,Venue v){if(v.getPricingType()!=null&&v.getPricingType()!=Venue.PricingType.FIXED_SLOT)plans.assertFeature(t,PlanService.Feature.ADVANCED_PRICING);}
     private void copy(Venue v,Venue i){v.setName(i.getName());v.setDescription(i.getDescription());v.setType(i.getType());v.setPrice(i.getPrice());v.setDurationMinutes(i.getDurationMinutes());v.setPricingType(i.getPricingType());v.setBasePrice(i.getBasePrice());v.setSlotDurationMinutes(i.getSlotDurationMinutes());v.setMinimumDurationMinutes(i.getMinimumDurationMinutes());v.setMaximumDurationMinutes(i.getMaximumDurationMinutes());v.setDurationStepMinutes(i.getDurationStepMinutes());v.setDailyPrice(i.getDailyPrice());v.setMinimumDays(i.getMinimumDays());v.setMaximumDays(i.getMaximumDays());v.setMaxGuests(i.getMaxGuests());v.setRequiresApproval(i.isRequiresApproval());v.setRequiresPayment(i.isRequiresPayment());v.setActive(i.isActive());}
     private void validate(Venue v){if(v.getName()==null||v.getName().isBlank()||v.getType()==null||v.getType().isBlank())throw new BusinessException("Nome e tipo são obrigatórios");Venue.PricingType p=v.getPricingType()==null?Venue.PricingType.FIXED_SLOT:v.getPricingType();switch(p){case HOURLY -> {price(v.getBasePrice()!=null?v.getBasePrice():v.getPrice());int min=n(v.getMinimumDurationMinutes(),60),max=n(v.getMaximumDurationMinutes(),240),step=n(v.getDurationStepMinutes(),60);if(min<1||max<min||step<1)throw new BusinessException("Duração por hora inválida");}case DAILY -> {price(v.getDailyPrice()!=null?v.getDailyPrice():v.getPrice());if(n(v.getMinimumDays(),1)<1||n(v.getMaximumDays(),365)<n(v.getMinimumDays(),1))throw new BusinessException("Limites de diária inválidos");}case PACKAGE -> {} default -> {price(v.getBasePrice()!=null?v.getBasePrice():v.getPrice());if(n(v.getSlotDurationMinutes(),n(v.getDurationMinutes(),60))<1)throw new BusinessException("Duração inválida");}}}

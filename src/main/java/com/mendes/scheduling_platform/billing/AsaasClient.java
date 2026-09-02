@@ -45,6 +45,12 @@ public class AsaasClient {
         }
     }
 
+    public void updateSubscription(String id, Map<String,Object> body){
+        client.put().uri("/subscriptions/{id}",id).contentType(MediaType.APPLICATION_JSON).body(body).retrieve()
+            .onStatus(status->status.isError(),(req,res)->{throw new BusinessException("Falha ao atualizar assinatura no Asaas: "+new String(res.getBody().readAllBytes()));})
+            .toBodilessEntity();
+    }
+
     public void cancelSubscription(String id){
         client.delete().uri("/subscriptions/{id}",id).retrieve().toBodilessEntity();
     }

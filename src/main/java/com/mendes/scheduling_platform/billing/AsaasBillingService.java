@@ -6,6 +6,8 @@ import com.mendes.scheduling_platform.subscription.Subscription;
 import com.mendes.scheduling_platform.subscription.SubscriptionRepository;
 import com.mendes.scheduling_platform.tenant.Tenant;
 import com.mendes.scheduling_platform.tenant.TenantRepository;
+import com.mendes.scheduling_platform.user.User;
+import com.mendes.scheduling_platform.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +21,10 @@ public class AsaasBillingService {
     private final SubscriptionRepository subscriptions;
     private final TenantRepository tenants;
     private final AsaasWebhookEventRepository webhookEvents;
+    private final UserRepository users;
 
-    public AsaasBillingService(AsaasClient client, SubscriptionRepository subscriptions, TenantRepository tenants, AsaasWebhookEventRepository webhookEvents) {
-        this.client=client; this.subscriptions=subscriptions; this.tenants=tenants; this.webhookEvents=webhookEvents;
+    public AsaasBillingService(AsaasClient client, SubscriptionRepository subscriptions, TenantRepository tenants, AsaasWebhookEventRepository webhookEvents, UserRepository users) {
+        this.client=client; this.subscriptions=subscriptions; this.tenants=tenants; this.webhookEvents=webhookEvents; this.users=users;
     }
 
     public record Checkout(String id,String url){}
@@ -113,6 +116,15 @@ public class AsaasBillingService {
     private void handleCheckoutPaid(JsonNode checkout) {
         Subscription s=findByCheckout(checkout.path("id").asText(null));
         if(s==null) return;
+        if(s.getPendingPlan()!=null) {
+            if(s.getAsaasSubscriptionId()!=null) {
+                s.setPreviousAsaasSubscriptionId(s.getAsaasSubscriptionId());
+                client.cancelSubscription(s.getAsaasSubscriptionId());
+            }
+            s.setPlan(s.getPendingPlan());
+            if(s.getPendingBillingCycle()!=null) s.setBillingCycle(s.getPendingBillingCycle());
+            s.setPendingPlan(null); s.setPendingBillingCycle(null);
+        }
         s.setStatus(Subscription.Status.ACTIVE);
         s.setStartDate(LocalDate.now());
         s.setNextBillingDate(nextBillingDate(LocalDate.now(), s.getBillingCycle()));
@@ -182,6 +194,8 @@ public class AsaasBillingService {
         s.setStatus(Subscription.Status.CANCELLED); subscriptions.save(s);
         tenants.findById(tenantId).ifPresent(t->{t.setStatus(Tenant.TenantStatus.SUSPENDED);tenants.save(t);});
     }
+
+    private int rank(String plan){return switch(normalizePlan(plan)){case "STARTER"->1;case "PRO"->2;case "BUSINESS"->3;default->1;}}
 
     private String text(JsonNode node,String field){return node.hasNonNull(field)?node.get(field).asText():null;}
     private LocalDate nextBillingDate(LocalDate from,String cycle){return "YEARLY".equals(cycle)?from.plusYears(1):from.plusMonths(1);}

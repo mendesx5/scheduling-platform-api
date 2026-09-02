@@ -1,5 +1,12 @@
 package com.mendes.scheduling_platform.venue;
-import com.mendes.scheduling_platform.security.TenantContext;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*; import java.util.*;
-@RestController @RequestMapping("/venues") public class VenueController { private final VenueService s; public VenueController(VenueService s){this.s=s;} @GetMapping List<Venue> list(){return s.list(TenantContext.getRequired());}@GetMapping("/{id}") Venue get(@PathVariable Long id){return s.get(TenantContext.getRequired(),id);}@PostMapping @PreAuthorize("hasAnyRole('OWNER','MANAGER')") Venue add(@RequestBody Venue v){return s.save(TenantContext.getRequired(),v);}@PutMapping("/{id}") @PreAuthorize("hasAnyRole('OWNER','MANAGER')") Venue edit(@PathVariable Long id,@RequestBody Venue v){return s.update(TenantContext.getRequired(),id,v);}@DeleteMapping("/{id}") @PreAuthorize("hasAnyRole('OWNER','MANAGER')") void delete(@PathVariable Long id){s.delete(TenantContext.getRequired(),id);} }
+import com.mendes.scheduling_platform.security.TenantContext; import org.springframework.security.access.prepost.PreAuthorize; import org.springframework.web.bind.annotation.*; import java.util.*;
+@RestController @RequestMapping("/venues")
+public class VenueController {
+ private final VenueService s; public VenueController(VenueService s){this.s=s;}
+ @GetMapping List<Venue> list(){return s.list(TenantContext.getRequired());}
+ @GetMapping("/{id}") Venue get(@PathVariable Long id){return s.get(TenantContext.getRequired(),id);}
+ @PostMapping @PreAuthorize("hasAnyRole('OWNER','MANAGER')") Venue add(@RequestBody Venue v){return s.save(TenantContext.getRequired(),v);}
+ @PutMapping("/{id}") @PreAuthorize("hasAnyRole('OWNER','MANAGER')") Venue edit(@PathVariable Long id,@RequestBody Venue v){return s.update(TenantContext.getRequired(),id,v);}
+ @PatchMapping("/{id}/active") @PreAuthorize("hasAnyRole('OWNER','MANAGER')") Venue active(@PathVariable Long id,@RequestParam boolean active){return s.setActive(TenantContext.getRequired(),id,active);}
+ @DeleteMapping("/{id}") @PreAuthorize("hasRole('OWNER')") void delete(@PathVariable Long id){s.delete(TenantContext.getRequired(),id);}
+}

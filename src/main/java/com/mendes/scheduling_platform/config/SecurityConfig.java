@@ -25,6 +25,8 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth->auth
                     .requestMatchers("/auth/**",
+                            "/password/**",
+                            "/platform/password/**",
                             "/tenants/register",
                             "/platform/auth/**",
                             "/public/**",
