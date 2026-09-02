@@ -35,6 +35,14 @@ public class AsaasBillingService {
         return value;
     }
 
+    public String normalizeCycle(String cycle) {
+        String value = cycle == null || cycle.isBlank() ? "MONTHLY" : cycle.trim().toUpperCase();
+        if (!value.equals("MONTHLY") && !value.equals("YEARLY")) {
+            throw new BusinessException("Ciclo de cobrança inválido");
+        }
+        return value;
+    }
+
     public BigDecimal priceFor(String plan) {
         return switch (normalizePlan(plan)) {
             case "STARTER" -> new BigDecimal("59.90");
@@ -44,22 +52,32 @@ public class AsaasBillingService {
         };
     }
 
+    // Ciclo anual equivale a 10x o valor mensal (2 meses de desconto).
+    public BigDecimal annualPriceFor(String plan) {
+        return priceFor(plan).multiply(BigDecimal.TEN);
+    }
+
+    public BigDecimal priceFor(String plan, String cycle) {
+        return normalizeCycle(cycle).equals("YEARLY") ? annualPriceFor(plan) : priceFor(plan);
+    }
+
     @Transactional
     public Checkout createCheckout(Tenant tenant, Subscription subscription, String ownerName, String email, String phone, String address) {
-        BigDecimal price=priceFor(subscription.getPlan());
+        String cycle=normalizeCycle(subscription.getBillingCycle());
+        BigDecimal price=priceFor(subscription.getPlan(), cycle);
         JsonNode response=client.createRecurringCheckout(Map.of(
-            "billingTypes", new String[]{"CREDIT_CARD"},
+            "billingTypes", new String[]{"CREDIT_CARD","PIX","BOLETO"},
             "chargeTypes", new String[]{"RECURRENT"},
             "minutesToExpire", 60,
             "externalReference", subscription.getId().toString(),
             "items", new Object[]{Map.of(
                 "name", "AgendaHub - Plano " + subscription.getPlan(),
-                "description", "Assinatura mensal do AgendaHub",
+                "description", cycle.equals("YEARLY") ? "Assinatura anual do AgendaHub" : "Assinatura mensal do AgendaHub",
                 "quantity", 1,
                 "value", price
             )},
             "subscription", Map.of(
-                "cycle", "MONTHLY",
+                "cycle", cycle,
                 "nextDueDate", LocalDate.now().toString()
             ),
             "callback", Map.of(
@@ -97,7 +115,7 @@ public class AsaasBillingService {
         if(s==null) return;
         s.setStatus(Subscription.Status.ACTIVE);
         s.setStartDate(LocalDate.now());
-        s.setNextBillingDate(LocalDate.now().plusMonths(1));
+        s.setNextBillingDate(nextBillingDate(LocalDate.now(), s.getBillingCycle()));
         if(checkout.hasNonNull("customer")) s.setAsaasCustomerId(checkout.get("customer").asText());
         subscriptions.save(s);
         activateTenant(s);
@@ -134,7 +152,8 @@ public class AsaasBillingService {
             s.setStatus(Subscription.Status.ACTIVE);
             s.setLastBillingDate(LocalDate.now());
             String due=payment.path("dueDate").asText(null);
-            if(due!=null && due.length()>=10) s.setNextBillingDate(LocalDate.parse(due.substring(0,10)).plusMonths(1));
+            LocalDate base=(due!=null && due.length()>=10) ? LocalDate.parse(due.substring(0,10)) : LocalDate.now();
+            s.setNextBillingDate(nextBillingDate(base, s.getBillingCycle()));
             subscriptions.save(s); activateTenant(s);
         } else {
             s.setStatus(Subscription.Status.PAST_DUE); subscriptions.save(s);
@@ -165,4 +184,5 @@ public class AsaasBillingService {
     }
 
     private String text(JsonNode node,String field){return node.hasNonNull(field)?node.get(field).asText():null;}
+    private LocalDate nextBillingDate(LocalDate from,String cycle){return "YEARLY".equals(cycle)?from.plusYears(1):from.plusMonths(1);}
 }

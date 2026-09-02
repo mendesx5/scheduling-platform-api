@@ -22,13 +22,14 @@ public class TenantService {
         tenants=t; users=u; subscriptions=s; encoder=e; this.billing=billing;
     }
 
-    public record Registration(String name,String slug,String ownerName,String email,String password,String phone,String address,String plan){}
+    public record Registration(String name,String slug,String ownerName,String email,String password,String phone,String address,String plan,String billingCycle){}
     public record RegistrationResult(Long tenantId,String checkoutId,String checkoutUrl,String plan){}
 
     @Transactional
     public RegistrationResult register(Registration r){
         String slug=r.slug().trim().toLowerCase();
         String plan=billing.normalizePlan(r.plan());
+        String cycle=billing.normalizeCycle(r.billingCycle());
         if(tenants.existsBySlug(slug)) throw new BusinessException("Slug já utilizado");
 
         Tenant t=new Tenant();
@@ -41,7 +42,7 @@ public class TenantService {
         u.setPassword(encoder.encode(r.password())); u.setRole(User.Role.OWNER); users.save(u);
 
         Subscription s=new Subscription();
-        s.setTenantId(t.getId()); s.setPlan(plan); s.setStatus(Subscription.Status.PAYMENT_PENDING);
+        s.setTenantId(t.getId()); s.setPlan(plan); s.setBillingCycle(cycle); s.setStatus(Subscription.Status.PAYMENT_PENDING);
         subscriptions.save(s);
 
         var checkout=billing.createCheckout(t, s, r.ownerName(), r.email(), r.phone(), r.address());

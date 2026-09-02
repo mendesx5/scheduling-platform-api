@@ -18,6 +18,7 @@ public class Subscription {
     private LocalDate endDate;
     private LocalDate nextBillingDate;
     private LocalDate lastBillingDate;
+    @Column(nullable=false) private String billingCycle = "MONTHLY";
 
     @Column(length=80) private String asaasCustomerId;
     @Column(length=80) private String asaasSubscriptionId;
