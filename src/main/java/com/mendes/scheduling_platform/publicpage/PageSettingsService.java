@@ -1,6 +1,7 @@
 package com.mendes.scheduling_platform.publicpage;
 
 import com.mendes.scheduling_platform.tenant.*;
+import com.mendes.scheduling_platform.plan.PlanService;
 import com.mendes.scheduling_platform.venue.*;
 import com.mendes.scheduling_platform.exception.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -13,10 +14,10 @@ public class PageSettingsService {
     private final TenantPageGalleryImageRepository gallery;
     private final TenantPageHighlightRepository highlights;
     private final TenantRepository tenants;
-    private final VenueRepository venues;
+    private final VenueRepository venues; private final PlanService plans;
 
-    public PageSettingsService(TenantPageSettingsRepository s,TenantPageGalleryImageRepository g,TenantPageHighlightRepository h,TenantRepository t,VenueRepository v){
-        settings=s;gallery=g;highlights=h;tenants=t;venues=v;
+    public PageSettingsService(TenantPageSettingsRepository s,TenantPageGalleryImageRepository g,TenantPageHighlightRepository h,TenantRepository t,VenueRepository v,PlanService plans){
+        settings=s;gallery=g;highlights=h;tenants=t;venues=v;this.plans=plans;
     }
 
     public TenantPageSettings get(Long tenantId){ return settings.findByTenantId(tenantId).orElseGet(()->defaults(tenantId)); }
@@ -30,9 +31,9 @@ public class PageSettingsService {
         current.setShowAbout(input.isShowAbout()); current.setShowVenues(input.isShowVenues()); current.setShowInclusions(input.isShowInclusions()); current.setShowGallery(input.isShowGallery()); current.setShowLocation(input.isShowLocation());
         return settings.save(current);
     }
-    public List<TenantPageGalleryImage> gallery(Long tenantId){return gallery.findAllByTenantIdOrderBySortOrderAsc(tenantId);}
+    public List<TenantPageGalleryImage> gallery(Long tenantId){return gallery.findAllByTenantIdOrderBySortOrderAsc(tenantId).stream().limit(plans.limits(tenantId).maxGalleryImages()).toList();}
     @Transactional public List<TenantPageGalleryImage> saveGallery(Long tenantId,List<TenantPageGalleryImage> items){
-        gallery.deleteByTenantId(tenantId); if(items==null)return List.of(); int order=0;
+        gallery.deleteByTenantId(tenantId); if(items==null)return List.of(); plans.assertGalleryLimit(tenantId,(int)items.stream().filter(Objects::nonNull).filter(i->i.getImageUrl()!=null&&!i.getImageUrl().isBlank()).count()); int order=0;
         for(TenantPageGalleryImage item:items){ if(item.getImageUrl()==null||item.getImageUrl().isBlank())continue; item.setId(null);item.setTenantId(tenantId);item.setSortOrder(order++);gallery.save(item); }
         return gallery(tenantId);
     }
@@ -44,7 +45,7 @@ public class PageSettingsService {
     }
     public PublicPageData publicPage(String slug){
         Tenant tenant=tenants.findBySlug(slug).filter(t->t.getStatus()==Tenant.TenantStatus.ACTIVE).orElseThrow(()->new NotFoundException("Estabelecimento não encontrado"));
-        return new PublicPageData(tenant,get(tenant.getId()),gallery(tenant.getId()),highlights(tenant.getId()),venues.findAllByTenantIdAndActiveTrue(tenant.getId()));
+        return new PublicPageData(tenant,get(tenant.getId()),gallery(tenant.getId()),highlights(tenant.getId()),venues.findAllByTenantIdAndActiveTrue(tenant.getId()),plans.hasFeature(tenant.getId(),PlanService.Feature.REMOVE_BRANDING));
     }
     private TenantPageSettings defaults(Long tenantId){
         TenantPageSettings p=new TenantPageSettings();p.setTenantId(tenantId);p.setTemplate(TenantPageSettings.Template.MODERN);
@@ -53,5 +54,5 @@ public class PageSettingsService {
         p.setAboutTitle("Um espaço pensado para bons momentos.");p.setInclusionsTitle("O que você encontra aqui");p.setGalleryTitle("Conheça cada detalhe");
         return p;
     }
-    public record PublicPageData(Tenant tenant,TenantPageSettings settings,List<TenantPageGalleryImage> gallery,List<TenantPageHighlight> highlights,List<Venue> venues){}
+    public record PublicPageData(Tenant tenant,TenantPageSettings settings,List<TenantPageGalleryImage> gallery,List<TenantPageHighlight> highlights,List<Venue> venues,boolean brandingRemoved){}
 }

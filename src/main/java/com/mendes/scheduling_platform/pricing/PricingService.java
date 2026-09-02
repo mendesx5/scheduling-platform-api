@@ -2,6 +2,7 @@ package com.mendes.scheduling_platform.pricing;
 
 import com.mendes.scheduling_platform.addon.*;
 import com.mendes.scheduling_platform.exception.*;
+import com.mendes.scheduling_platform.plan.PlanService;
 import com.mendes.scheduling_platform.venue.*;
 import com.mendes.scheduling_platform.venuepackage.*;
 import org.springframework.stereotype.Service;
@@ -13,12 +14,14 @@ import java.util.*;
 public class PricingService {
     public record AddonRequest(Long addonId,Integer quantity){}
     public record Quote(BigDecimal baseAmount,BigDecimal addonsAmount,BigDecimal totalAmount,OffsetDateTime startDateTime,OffsetDateTime endDateTime){}
-    private final VenuePackageRepository packages; private final AddonRepository addons;
-    public PricingService(VenuePackageRepository p,AddonRepository a){packages=p;addons=a;}
+    private final VenuePackageRepository packages; private final AddonRepository addons; private final PlanService plans;
+    public PricingService(VenuePackageRepository p,AddonRepository a){this(p,a,null);}
+    public PricingService(VenuePackageRepository p,AddonRepository a,PlanService plans){packages=p;addons=a;this.plans=plans;}
 
     public Quote quote(Long tenantId, Venue venue, OffsetDateTime start, Integer durationMinutes, Integer days, Long packageId, List<AddonRequest> selected){
         if(start==null)throw new BusinessException("Data/hora inicial obrigatória");
         Venue.PricingType type=venue.getPricingType()==null?Venue.PricingType.FIXED_SLOT:venue.getPricingType();
+        if(type!=Venue.PricingType.FIXED_SLOT && plans!=null) plans.assertFeature(tenantId, PlanService.Feature.ADVANCED_PRICING);
         BigDecimal base; OffsetDateTime end;
         switch(type){
             case HOURLY -> {int duration=durationMinutes==null?value(venue.getMinimumDurationMinutes(),60):durationMinutes;validateHourly(venue,duration);BigDecimal hourly=nonNegative(first(venue.getBasePrice(),venue.getPrice()),"Preço por hora inválido");base=hourly.multiply(BigDecimal.valueOf(duration)).divide(BigDecimal.valueOf(60),2,RoundingMode.HALF_UP);end=start.plusMinutes(duration);}
