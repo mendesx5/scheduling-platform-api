@@ -195,7 +195,14 @@ public class AsaasBillingService {
         tenants.findById(tenantId).ifPresent(t->{t.setStatus(Tenant.TenantStatus.SUSPENDED);tenants.save(t);});
     }
 
-    private int rank(String plan){return switch(normalizePlan(plan)){case "STARTER"->1;case "PRO"->2;case "BUSINESS"->3;default->1;}}
+    private int rank(String plan) {
+        return switch (normalizePlan(plan)) {
+            case "STARTER" -> 1;
+            case "PRO" -> 2;
+            case "BUSINESS" -> 3;
+            default -> 1;
+        };
+    }
 
     private String text(JsonNode node,String field){return node.hasNonNull(field)?node.get(field).asText():null;}
     private LocalDate nextBillingDate(LocalDate from,String cycle){return "YEARLY".equals(cycle)?from.plusYears(1):from.plusMonths(1);}
