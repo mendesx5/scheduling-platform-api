@@ -66,28 +66,29 @@ public class AsaasBillingService {
 
     @Transactional
     public Checkout createCheckout(Tenant tenant, Subscription subscription, String ownerName, String email, String phone, String address) {
-        String cycle=normalizeCycle(subscription.getBillingCycle());
-        BigDecimal price=priceFor(subscription.getPlan(), cycle);
+        String plan=subscription.getPendingPlan()!=null?subscription.getPendingPlan():subscription.getPlan();
+        String cycle=normalizeCycle(subscription.getPendingBillingCycle()!=null?subscription.getPendingBillingCycle():subscription.getBillingCycle());
+        BigDecimal price=priceFor(plan, cycle);
         JsonNode response=client.createRecurringCheckout(Map.of(
-            "billingTypes", new String[]{"CREDIT_CARD","PIX","BOLETO"},
-            "chargeTypes", new String[]{"RECURRENT"},
-            "minutesToExpire", 60,
-            "externalReference", subscription.getId().toString(),
-            "items", new Object[]{Map.of(
-                "name", "AgendaHub - Plano " + subscription.getPlan(),
-                "description", cycle.equals("YEARLY") ? "Assinatura anual do AgendaHub" : "Assinatura mensal do AgendaHub",
-                "quantity", 1,
-                "value", price
-            )},
-            "subscription", Map.of(
-                "cycle", cycle,
-                "nextDueDate", LocalDate.now().toString()
-            ),
-            "callback", Map.of(
-                "successUrl", client.frontendUrl() + "/billing/success",
-                "cancelUrl", client.frontendUrl() + "/billing/cancelled",
-                "expiredUrl", client.frontendUrl() + "/billing/expired"
-            )
+                "billingTypes", new String[]{"CREDIT_CARD","PIX","BOLETO"},
+                "chargeTypes", new String[]{"RECURRENT"},
+                "minutesToExpire", 60,
+                "externalReference", subscription.getId().toString(),
+                "items", new Object[]{Map.of(
+                        "name", "AgendaHub - Plano " + plan,
+                        "description", cycle.equals("YEARLY") ? "Assinatura anual do AgendaHub" : "Assinatura mensal do AgendaHub",
+                        "quantity", 1,
+                        "value", price
+                )},
+                "subscription", Map.of(
+                        "cycle", cycle,
+                        "nextDueDate", LocalDate.now().toString()
+                ),
+                "callback", Map.of(
+                        "successUrl", client.frontendUrl() + "/billing/success",
+                        "cancelUrl", client.frontendUrl() + "/billing/cancelled",
+                        "expiredUrl", client.frontendUrl() + "/billing/expired"
+                )
         ));
         String id=text(response,"id");
         if(id==null) throw new BusinessException("Asaas não retornou o ID do checkout");
@@ -193,6 +194,27 @@ public class AsaasBillingService {
         if(s.getAsaasSubscriptionId()!=null) client.cancelSubscription(s.getAsaasSubscriptionId());
         s.setStatus(Subscription.Status.CANCELLED); subscriptions.save(s);
         tenants.findById(tenantId).ifPresent(t->{t.setStatus(Tenant.TenantStatus.SUSPENDED);tenants.save(t);});
+    }
+
+    @Transactional
+    public Checkout requestPlanChange(Long tenantId, String plan, String billingCycle) {
+        Subscription s=subscriptions.findByTenantId(tenantId).orElseThrow(()->new BusinessException("Assinatura não encontrada"));
+        String newPlan=normalizePlan(plan);
+        String newCycle=normalizeCycle(billingCycle);
+        if(newPlan.equals(normalizePlan(s.getPlan())) && newCycle.equals(normalizeCycle(s.getBillingCycle())))
+            throw new BusinessException("Você já está neste plano");
+        Tenant t=tenants.findById(tenantId).orElseThrow(()->new BusinessException("Tenant não encontrado"));
+        User owner=users.findAllByTenantId(tenantId).stream()
+                .filter(u->u.getRole()==User.Role.OWNER)
+                .findFirst()
+                .orElseThrow(()->new BusinessException("Responsável pela conta não encontrado"));
+        s.setPendingPlan(newPlan);
+        s.setPendingBillingCycle(newCycle);
+        subscriptions.save(s);
+        Checkout checkout=createCheckout(t, s, owner.getName(), owner.getEmail(), t.getPhone(), t.getAddress());
+        s.setAsaasCheckoutId(checkout.id());
+        subscriptions.save(s);
+        return checkout;
     }
 
     private int rank(String plan) {

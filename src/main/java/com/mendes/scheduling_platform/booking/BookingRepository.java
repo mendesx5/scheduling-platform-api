@@ -1,2 +1,11 @@
 package com.mendes.scheduling_platform.booking; import org.springframework.data.jpa.repository.*; import org.springframework.data.repository.query.Param; import java.time.*; import java.util.*;
-public interface BookingRepository extends JpaRepository<Booking,Long> { List<Booking> findAllByTenantId(Long tenantId); List<Booking> findAllByTenantIdAndStartDateTimeBetween(Long tenantId, OffsetDateTime start, OffsetDateTime end); Optional<Booking> findByIdAndTenantId(Long id,Long tenantId); @Query("select count(b)>0 from Booking b where b.tenantId=:tenant and b.venueId=:venue and b.status<>com.mendes.scheduling_platform.booking.Booking.Status.CANCELLED and :start < b.endDateTime and :end > b.startDateTime") boolean existsConflict(@Param("tenant") Long tenant,@Param("venue") Long venue,@Param("start") OffsetDateTime start,@Param("end") OffsetDateTime end); @Query("select b from Booking b where b.tenantId=:tenant and b.venueId=:venue and b.startDateTime<:end and b.endDateTime>:start and b.status<>com.mendes.scheduling_platform.booking.Booking.Status.CANCELLED") List<Booking> findBusy(@Param("tenant") Long tenant,@Param("venue") Long venue,@Param("start") OffsetDateTime start,@Param("end") OffsetDateTime end); }
+public interface BookingRepository extends JpaRepository<Booking,Long> {
+    List<Booking> findAllByTenantId(Long tenantId);
+    List<Booking> findAllByTenantIdAndStartDateTimeBetween(Long tenantId, OffsetDateTime start, OffsetDateTime end);
+    Optional<Booking> findByIdAndTenantId(Long id,Long tenantId);
+    long countByTenantIdAndVenueId(Long tenantId,Long venueId);
+    @Query("select count(b)>0 from Booking b where b.tenantId=:tenant and b.venueId=:venue and b.status<>com.mendes.scheduling_platform.booking.Booking.Status.CANCELLED and :start < b.endDateTime and :end > b.startDateTime")
+    boolean existsConflict(@Param("tenant") Long tenant,@Param("venue") Long venue,@Param("start") OffsetDateTime start,@Param("end") OffsetDateTime end);
+    @Query("select b from Booking b where b.tenantId=:tenant and b.venueId=:venue and b.startDateTime<:end and b.endDateTime>:start and b.status<>com.mendes.scheduling_platform.booking.Booking.Status.CANCELLED")
+    List<Booking> findBusy(@Param("tenant") Long tenant,@Param("venue") Long venue,@Param("start") OffsetDateTime start,@Param("end") OffsetDateTime end);
+}

@@ -11,9 +11,9 @@ import java.util.*;
 
 @Service
 public class PlanService {
-    public enum Feature { ADVANCED_PRICING, REMOVE_BRANDING, EMPLOYEE_ROLE }
+    public enum Feature { ADVANCED_PRICING, REMOVE_BRANDING, EMPLOYEE_ROLE, ADVANCED_DASHBOARD, PLUS_ANALYTICS }
     public record Limits(int maxVenues,int maxUsers,int maxAddons,int maxPackages,int maxGalleryImages){}
-    public record Features(boolean advancedPricing,boolean removeBranding,boolean employeeRole){}
+    public record Features(boolean advancedPricing,boolean removeBranding,boolean employeeRole,boolean advancedDashboard,boolean plusAnalytics){}
     private final SubscriptionRepository subscriptions; private final VenueRepository venues; private final UserRepository users;
     private final AddonRepository addons; private final VenuePackageRepository packages;
 
@@ -32,8 +32,9 @@ public class PlanService {
     public Features features(Long tenantId){return featuresFor(currentPlan(tenantId));}
     public Features featuresFor(String plan){
         return switch(normalize(plan)){
-            case "PRO", "BUSINESS" -> new Features(true,true,true);
-            default -> new Features(false,false,false);
+            case "BUSINESS" -> new Features(true,true,true,true,true);
+            case "PRO" -> new Features(true,true,true,true,false);
+            default -> new Features(false,false,false,false,false);
         };
     }
     public boolean hasFeature(Long tenantId, Feature feature){
@@ -42,6 +43,8 @@ public class PlanService {
             case ADVANCED_PRICING -> f.advancedPricing();
             case REMOVE_BRANDING -> f.removeBranding();
             case EMPLOYEE_ROLE -> f.employeeRole();
+            case ADVANCED_DASHBOARD -> f.advancedDashboard();
+            case PLUS_ANALYTICS -> f.plusAnalytics();
         };
     }
     public void assertFeature(Long tenantId, Feature feature){
