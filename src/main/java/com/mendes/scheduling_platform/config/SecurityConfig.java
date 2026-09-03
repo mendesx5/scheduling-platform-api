@@ -23,25 +23,23 @@ public class SecurityConfig {
                 .cors(cors->{})
                 .sessionManagement(session->session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth->auth
-                    .requestMatchers("/auth/**",
-                            "/password/**",
-                            "/platform/password/**",
-                            "/tenants/register",
-                            "/platform/auth/**",
-                            "/public/**",
-                            "/uploads/**",
-                            "/billing/webhooks/asaas",
-                            "/billing/checkouts/**",
-                            "/v3/api-docs/**",
-                            "/swagger-ui/**",
-                            "/swagger-ui.html",
-                            "/actuator/health",
-                            "/tenants/register")
-                    .permitAll()
-                .requestMatchers("/platform/admin/**").hasRole("PLATFORM_ADMIN")
-                    .anyRequest().authenticated())
-            .addFilterBefore(rateLimitFilter,UsernamePasswordAuthenticationFilter.class).addFilterBefore(jwtFilter,UsernamePasswordAuthenticationFilter.class).build();
+                .authorizeHttpRequests(auth->auth
+                        .requestMatchers("/auth/**",
+                                "/tenants/register",
+                                "/platform/auth/**",
+                                "/public/**",
+                                "/uploads/**",
+                                "/billing/webhooks/asaas",
+                                "/billing/checkouts/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/actuator/health",
+                                "/tenants/register")
+                        .permitAll()
+                        .requestMatchers("/platform/admin/**").hasRole("PLATFORM_ADMIN")
+                        .anyRequest().authenticated())
+                .addFilterBefore(rateLimitFilter,UsernamePasswordAuthenticationFilter.class).addFilterBefore(jwtFilter,UsernamePasswordAuthenticationFilter.class).build();
     }
     @Bean CorsConfigurationSource corsConfigurationSource(@Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}") String origins){
         CorsConfiguration c=new CorsConfiguration();c.setAllowedOrigins(Arrays.stream(origins.split(",")).map(String::trim).toList());
