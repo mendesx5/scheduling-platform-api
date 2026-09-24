@@ -70,7 +70,7 @@ public class AsaasBillingService {
         String cycle=normalizeCycle(subscription.getPendingBillingCycle()!=null?subscription.getPendingBillingCycle():subscription.getBillingCycle());
         BigDecimal price=priceFor(plan, cycle);
         JsonNode response=client.createRecurringCheckout(Map.of(
-                "billingTypes", new String[]{"CREDIT_CARD","PIX","BOLETO"},
+                "billingTypes", new String[]{"CREDIT_CARD"},
                 "chargeTypes", new String[]{"RECURRENT"},
                 "minutesToExpire", 60,
                 "externalReference", subscription.getId().toString(),
